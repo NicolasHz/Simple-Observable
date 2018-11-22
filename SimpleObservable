@@ -1,0 +1,117 @@
+class Observable {
+  constructor(subscribe) {
+    this._subscribe = subscribe;
+  }
+  
+  subscribe(next,err,compl) {
+    const observer = new Observer(next,err,compl);
+    
+    observer._unsubscribe = this._subscribe(observer);
+    
+    return ({
+      unsubscribe() {
+        observer.unsubscribe();
+      }
+    });
+  }
+}
+
+Observable.prototype.map = function (transformation, err, compl) {
+  const stream = this;
+  return new Observable((observer) => {
+    const subscription = stream.subscribe(
+      (value) => observer.next(transformation(value)),
+      (err) => observer.error(err),
+      () => observer.complete()
+    );
+    
+    return subscription.unsubscribe;
+  });
+};
+
+
+Observable.interval = (interval) => {
+  return new Observable((observer) => {
+    let i = 0;
+    const id = setInterval(() => {
+      observer.next(i++);
+    }, interval);
+  
+    return () => {
+      clearInterval(id);
+      console.log('Observable.interval: unsubscribbed');
+    };
+  });
+}
+
+
+Observable.from = (values) => {
+  return new Observable((observer) => {
+    values.forEach((value) => observer.next(value));
+    
+    observer.complete();
+    return () => {
+      console.log('Observable.from: unsubscribed');
+    };
+  });
+}
+
+class Observer {
+  constructor(next,error,complete) {
+    this._observer = {next:next,error:error,complete:complete};
+    this.isUnsubscribed = false;
+  }
+  
+  next(value) {
+    if (this._observer.next && !this.isUnsubscribed) {
+      this._observer.next(value);
+    }
+  }
+  
+  error(error) {
+    if (!this.isUnsubscribed) {
+      if (this._observer.error) {
+        this._observer.error(error);
+      }
+        
+      this.unsubscribe();
+    }
+  }
+  
+  complete() {
+    if (!this.isUnsubscribed) {
+      if (this._observer.complete) {
+        this._observer.complete();
+      }
+      console.log('complete unsubscribe')
+      this.unsubscribe();
+    }
+  }
+  
+  unsubscribe() {
+    this.isUnsubscribed = true;
+    
+    if (this._unsubscribe) {
+      this._unsubscribe();
+    }
+  }
+}
+
+
+const numbers$ = Observable.from([0, 1, 2, 3, 4])
+                  .map((v)=>v+v)
+                  .subscribe(
+                    (value) => { console.log(value); },
+                    (err) => { console.error(err); },
+                    () => { console.info('done'); }
+                  );
+setTimeout(subscription.unsubscribe, 500);
+
+
+
+
+
+
+
+
+
